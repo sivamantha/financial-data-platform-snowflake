@@ -1,4 +1,40 @@
+# dbt
+dbt_transform/target/
+dbt_transform/dbt_packages/
+dbt_transform/logs/
+profiles.yml
 
-target/
-dbt_packages/
-logs/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Environment
+.env
+.env.local
+*.p8
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Airflow
+airflow/logs/
+airflow/*.db
+airflow/airflow-webserver.pid
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars

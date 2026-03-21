@@ -1,16 +1,9 @@
-
-# Name your project! Project names should contain only lowercase characters
-# and underscores. A good package name should reflect your organization's
-# name or the intended use of these models
 name: 'dbt_transform'
 version: '1.0.0'
+config-version: 2
 
-# This setting configures which "profile" dbt uses for this project.
 profile: 'dbt_transform'
 
-# These configurations specify where dbt should look for different types of files.
-# The `model-paths` config, for example, states that models in this project can be
-# found in the "models/" directory. You probably won't need to change these!
 model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
@@ -18,19 +11,74 @@ seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
-clean-targets:         # directories to be removed by `dbt clean`
+clean-targets:
   - "target"
   - "dbt_packages"
 
+vars:
+  # Global project variables
+  source_database: 'FIN_RAW_DB'
+  analytics_database: 'FIN_ANALYTICS_DB'
 
-# Configuring models
-# Full documentation: https://docs.getdbt.com/docs/configuring-models
-
-# In this example config, we tell dbt to build all models in the example/
-# directory as views. These settings can be overridden in the individual model
-# files using the `{{ config(...) }}` macro.
 models:
   dbt_transform:
-    # Config indicated by + and applies to all files under models/example/
-    example:
+
+    # ── Bronze layer ──────────────────────────────────────────
+    # Raw ingestion tables - append-only, full audit trail
+    # Materialized as views pointing to RAW_DB source tables
+    bronze:
+      +schema: bronze
       +materialized: view
+      +tags: ['bronze', 'raw']
+
+    # ── Silver layer ──────────────────────────────────────────
+    # Cleansed, conformed, deduplicated
+    # Incremental models with merge strategy for efficiency
+    silver:
+      +schema: silver
+      +materialized: incremental
+      +tags: ['silver', 'cleansed']
+      +on_schema_change: 'append_new_columns'
+
+    # ── Gold layer ────────────────────────────────────────────
+    # Business-ready aggregates, star schema, KPIs
+    # Tables for fast analytics query performance
+    gold:
+      +schema: gold
+      +materialized: table
+      +tags: ['gold', 'business']
+
+    # ── Staging ───────────────────────────────────────────────
+    # Lightweight transformations on source data
+    staging:
+      +schema: staging
+      +materialized: view
+      +tags: ['staging']
+
+seeds:
+  dbt_transform:
+    +schema: seeds
+
+snapshots:
+  dbt_transform:
+    +target_schema: snapshots
+    +strategy: timestamp
+    +unique_key: id
+    +updated_at: updated_at
+
+# ── dbt test severity defaults ──────────────────────────────
+tests:
+  dbt_transform:
+    +severity: warn
+    +warn_if: ">10"
+    +error_if: ">100"
+
+# ── Query tagging for Snowflake cost attribution ─────────────
+query-comment:
+  comment: "dbt_transform | {{ node.unique_id }} | {{ target.name }}"
+  append: true
+
+# ── dbt docs ─────────────────────────────────────────────────
+dispatch:
+  - macro_namespace: dbt
+    search_order: ['dbt_transform', 'dbt']
