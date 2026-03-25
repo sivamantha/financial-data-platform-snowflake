@@ -1,0 +1,8 @@
+packages:
+  # Data quality testing framework (new namespace)
+  - package: metaplane/dbt_expectations
+    version: [">=0.10.0", "<0.11.0"]
+
+  # Utility macros - surrogate keys, pivot, star, etc.
+  - package: dbt-labs/dbt_utils
+    version: [">=1.3.0", "<2.0.0"]

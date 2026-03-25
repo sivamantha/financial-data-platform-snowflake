@@ -1,0 +1,32 @@
+# =============================================================================
+# dbt profiles template
+# Copy this to ~/.dbt/profiles.yml and fill in your credentials
+# DO NOT commit profiles.yml with real credentials
+# =============================================================================
+
+dbt_transform:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: '<your_account_locator>'  # e.g. abc12345.ca-central-1.aws
+      user: '<your_username>'
+      role: DBT_TRANSFORM_ROLE
+      private_key_path: '<path_to_rsa_key.p8>'  # e.g. /home/user/.ssh/rsa_key.p8
+      database: FIN_ANALYTICS_DB
+      warehouse: TRANSFORM_WH
+      schema: DEV
+      threads: 4
+      client_session_keep_alive: False
+
+    prod:
+      type: snowflake
+      account: '<your_account_locator>'
+      user: DBT_SVC_USER
+      role: DBT_TRANSFORM_ROLE
+      private_key_path: '<path_to_svc_rsa_key.p8>'
+      database: FIN_ANALYTICS_DB
+      warehouse: TRANSFORM_WH
+      schema: PUBLIC
+      threads: 8
+      client_session_keep_alive: False

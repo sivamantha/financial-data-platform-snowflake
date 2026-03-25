@@ -2,8 +2,10 @@ name: 'dbt_transform'
 version: '1.0.0'
 config-version: 2
 
+# Must match profile name in ~/.dbt/profiles.yml
 profile: 'dbt_transform'
 
+# ── Path configuration ────────────────────────────────────────
 model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
@@ -15,70 +17,117 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
+
+# ── Global variables ──────────────────────────────────────────
+# Reference in models with: {{ var('source_database') }}
+# Override at runtime with: dbt run --vars '{"source_database": "FIN_RAW_DB_PROD"}'
 vars:
-  # Global project variables
   source_database: 'FIN_RAW_DB'
   analytics_database: 'FIN_ANALYTICS_DB'
 
+
+# ── Model configuration ──────────────────────────────────────
+# Each key maps to a subfolder in models/
+# MATERIALIZATION CHEAT SHEET:
+#   view         → zero storage, always fresh, slower to query
+#   table        → fast to query, full rebuild every run
+#   incremental  → fast to query, only processes new rows (needs unique_key)
+#   ephemeral    → inlined as CTE, no object created in Snowflake
 models:
   dbt_transform:
 
-    # ── Bronze layer ──────────────────────────────────────────
-    # Raw ingestion tables - append-only, full audit trail
-    # Materialized as views pointing to RAW_DB source tables
+    # Bronze: raw data pass-through
+    # Views pointing at FIN_RAW_DB source tables
     bronze:
+      +database: FIN_ANALYTICS_DB
       +schema: bronze
       +materialized: view
       +tags: ['bronze', 'raw']
 
-    # ── Silver layer ──────────────────────────────────────────
-    # Cleansed, conformed, deduplicated
-    # Incremental models with merge strategy for efficiency
+    # Silver: cleansed, conformed, business-typed
+    # Incremental with merge strategy
+    # MODIFY: +incremental_strategy: 'delete+insert' if merge is slow
     silver:
+      +database: FIN_ANALYTICS_DB
       +schema: silver
       +materialized: incremental
       +tags: ['silver', 'cleansed']
       +on_schema_change: 'append_new_columns'
 
-    # ── Gold layer ────────────────────────────────────────────
-    # Business-ready aggregates, star schema, KPIs
-    # Tables for fast analytics query performance
+    # Gold: business-ready, query-optimized
+    # Full tables for dashboard/analytics performance
     gold:
+      +database: FIN_ANALYTICS_DB
       +schema: gold
       +materialized: table
       +tags: ['gold', 'business']
 
-    # ── Staging ───────────────────────────────────────────────
-    # Lightweight transformations on source data
+    # Staging: lightweight source transforms
     staging:
+      +database: FIN_ANALYTICS_DB
       +schema: staging
       +materialized: view
       +tags: ['staging']
 
+
+# ── Seed configuration ────────────────────────────────────────
 seeds:
   dbt_transform:
+    +database: FIN_ANALYTICS_DB
     +schema: seeds
 
+
+# ── Snapshot configuration ────────────────────────────────────
+# SCD Type 2 tracking
+# MODIFY: strategy to 'check' if source has no updated_at column
 snapshots:
   dbt_transform:
+    +target_database: FIN_ANALYTICS_DB
     +target_schema: snapshots
     +strategy: timestamp
     +unique_key: id
     +updated_at: updated_at
 
-# ── dbt test severity defaults ──────────────────────────────
+
+# ── Test configuration ────────────────────────────────────────
 tests:
   dbt_transform:
     +severity: warn
     +warn_if: ">10"
     +error_if: ">100"
 
-# ── Query tagging for Snowflake cost attribution ─────────────
+
+# ── Query tagging for Snowflake cost attribution ──────────────
 query-comment:
   comment: "dbt_transform | {{ node.unique_id }} | {{ target.name }}"
   append: true
 
-# ── dbt docs ─────────────────────────────────────────────────
+
+# ── Dispatch ──────────────────────────────────────────────────
 dispatch:
   - macro_namespace: dbt
     search_order: ['dbt_transform', 'dbt']
+
+
+# ══════════════════════════════════════════════════════════════
+# FUTURE ADDITIONS (uncomment when ready):
+# ══════════════════════════════════════════════════════════════
+#
+# ── Persist docs to Snowflake ─────────────────────────────
+# models:
+#   dbt_transform:
+#     +persist_docs:
+#       relation: true
+#       columns: true
+#
+# ── Auto-grant on gold tables ─────────────────────────────
+#     gold:
+#       +post-hook:
+#         - "GRANT SELECT ON {{ this }} TO ROLE ANALYST_ROLE"
+#
+# ── Warehouse resume/suspend on run ───────────────────────
+# on-run-start:
+#   - "ALTER WAREHOUSE TRANSFORM_WH RESUME IF SUSPENDED"
+# on-run-end:
+#   - "ALTER WAREHOUSE TRANSFORM_WH SUSPEND"
+# ══════════════════════════════════════════════════════════════

@@ -1,0 +1,63 @@
+version: 2
+
+sources:
+
+  # ── SEC EDGAR: Company filings and financial statements ─────
+  - name: sec_edgar
+    database: FIN_RAW_DB
+    schema: SEC_EDGAR
+    description: "SEC EDGAR company filings: 10-K, 10-Q, 8-K and financial statement data"
+    freshness:
+      warn_after: { count: 24, period: hour }
+      error_after: { count: 48, period: hour }
+    loaded_at_field: _loaded_at
+    tables:
+      - name: filings_raw
+        description: "Raw SEC filing metadata: CIK, filing type, dates, URLs"
+      - name: company_info_raw
+        description: "Company reference data: CIK, name, SIC code, industry"
+      - name: financial_statements_raw
+        description: "Parsed financial statement data: revenue, net income, assets, EPS"
+
+  # ── FRED: Federal Reserve Economic Data ─────────────────────
+  - name: fred
+    database: FIN_RAW_DB
+    schema: FRED
+    description: "Federal Reserve economic indicators: rates, inflation, GDP, unemployment"
+    freshness:
+      warn_after: { count: 24, period: hour }
+      error_after: { count: 48, period: hour }
+    loaded_at_field: _loaded_at
+    tables:
+      - name: economic_indicators_raw
+        description: "Time series economic data: series_id, date, value, frequency"
+
+  # ── Market data: Stock prices and sector performance ────────
+  - name: market_data
+    database: FIN_RAW_DB
+    schema: MARKET_DATA
+    description: "Daily stock prices and sector performance from Alpha Vantage"
+    freshness:
+      warn_after: { count: 12, period: hour }
+      error_after: { count: 24, period: hour }
+    loaded_at_field: _loaded_at
+    tables:
+      - name: daily_prices_raw
+        description: "Daily OHLCV: open, high, low, close, volume per ticker"
+      - name: sector_performance_raw
+        description: "Sector-level performance metrics: technology, financials, etc."
+      - name: company_overview_raw
+        description: "Company fundamentals: market cap, P/E ratio, dividend yield"
+
+  # ── FX rates: Foreign exchange data ─────────────────────────
+  - name: fx_rates
+    database: FIN_RAW_DB
+    schema: FX_RATES
+    description: "Daily exchange rates from Open Exchange Rates API"
+    freshness:
+      warn_after: { count: 24, period: hour }
+      error_after: { count: 48, period: hour }
+    loaded_at_field: _loaded_at
+    tables:
+      - name: exchange_rates_raw
+        description: "Daily FX rates: base currency, target currency, rate, date"
